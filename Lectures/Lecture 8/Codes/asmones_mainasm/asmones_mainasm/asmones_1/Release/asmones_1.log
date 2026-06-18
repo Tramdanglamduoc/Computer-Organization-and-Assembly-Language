@@ -1,0 +1,11 @@
+﻿  Assembling mainones.asm...
+mainones.asm(46): warning A4023: with /coff switch, leading underscore required for start address : main
+  Assembling ones.asm...
+ones.asm(29): warning A6004: procedure argument or local not referenced : num
+ones.asm(29): warning A6004: procedure argument or local not referenced : n
+  Generating code
+  0 of 1 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  asmones_1.vcxproj -> C:\COAL\_COAL2025_32\MyAsm\asmones_mainasm\Release\asmones_1.exe

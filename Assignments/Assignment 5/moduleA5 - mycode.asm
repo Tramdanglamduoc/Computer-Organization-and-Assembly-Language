@@ -1,0 +1,173 @@
+.686
+.MODEL flat, stdcall
+OPTION casemap:none
+
+includelib kernel32.lib
+extern ExitProcess@4:PROC
+
+.CONST
+; Adjust input values if appropriate for a task A input
+MA  DD  0, -1500, 2500, 70000
+    DD  3500, 4500, -5500, -80000
+
+; Adjust input values if appropriate for a task B input
+MB  DD  -901, -101, 200, 400
+    DD  600, -701, 800, 0
+
+; input array M1 and M2 dimensions
+ROWS EQU 2; number of rows
+COLS EQU 4; number of columns
+
+.DATA?
+; An output array for storing the result of the task A calculations
+; (adjust according to the assigned variant) - My task A is storing the 
+RA  DD  ROWS DUP(?)
+
+; An output array for storing the result of the task B calculations
+; (adjust according to the assigned variant)
+RB  DD  ROWS DUP(?)
+
+; It is prohibited to introduce additional variables!
+; For temporal data storage use available processor registers and/or stack memory.
+
+; Ngoc Bao Tram Tran - 231ADB294
+; My task variants are: A2; B1
+; Paste the assigned tasks variant description for a reference:
+; Task A - Task A2: For each row count the number of odd values (value mod 2 <> 0).
+; Task B - Task B1: In each row find the maximal negative value.
+
+
+.CODE
+A5:
+    ; TaskA: For each row count the number of odd values (value mod 2 <> 0).
+    ; Task A solution - (Row by row processing)
+    ; For grade level 7
+    ; initialization and validations before the loop
+    lea     ESI, MA     ; inital offset in MA; input array
+    lea     EDI, RA     ; inital offset in RA; output array
+    xor     EAX, EAX   ; clear EAX to use it as a counter - storing the number of odd values
+    mov     ECX, ROWS   ; 
+
+    
+    ; Side case: no input rows (ROWS == 0) ; or negative input rows
+    test    ECX, ECX; check if ROWS is zero, we use test instruction to set zero flag if ECX is zero
+    jle      No_Input_Data_Values_A; if zero flag is set, jump to Exit
+
+    ; Side case: no input columns (COLS == 0); or negative input columns
+    mov     EDX, COLS        ; load number of columns
+    test    EDX, EDX         ; check if COLS is zero
+    jle      No_Input_Data_Values_A ; if zero, also skip Task A processing
+
+Row_LoopA1:                 ; outer loop; process each row
+    push    ECX ; save rows counter - outer loop counter
+    
+    mov     ECX, COLS   ; initialize inner loop counter - number of columns
+
+Col_LoopA1:				  ; inner loop ; process each column per row
+    mov    EBX, dword ptr [ESI]         ; load current element into EBX; EBX = current element value
+    
+    test  EBX, 1         ; check if the value is odd
+    ; because odd numbers have the least significant bit set to 1
+    ; so we can use the TEST instruction (which works similar to AND but not change the value of EBX)
+    ; and when the result is non-zero after using "test", it means the number is odd
+    jz     Even_Number        ; if zero flag is set, the number is even, skip incrementing the counter
+    inc     EAX          ; increment the odd counter
+    
+Even_Number:
+    add     ESI, 4       ; move to the next element in the row, each element is 4 bytes (DWORD - DD); it also means that moving to the next column in the same row
+    loop    Col_LoopA1   ; repeat inner loop for all columns (to process all elements in the current row)
+
+; Odd_Number_Stored
+    mov     [EDI], EAX   ; store the result (number of odd values in the current row)
+    add     EDI, 4       ; move to the next position in the output array RA
+
+    xor     EAX, EAX     ; clear EAX for the next row's odd count
+    pop     ECX          ; restore rows counter - outer loop counter
+    loop    Row_LoopA1   ; repeat outer loop for all rows
+
+No_Input_Data_Values_A:
+    ; No valid data for Task A (or Task A finished normally)
+    ; This Task A variant does not use division, so division-by-zero is not possible
+    ; Then it will continue with Task B
+
+; Task B - Task B1: In each row find the maximal negative value.
+TaskB: 
+    ; Task B solution - (Row by row processing)
+    ; initialization and validations before the loop
+    ; For grade level 9
+    lea     ESI, MB     ; inital offset in MB; input array
+    lea     EDI, RB     ; inital offset in RB; output array
+    mov     ECX, ROWS   ; number of rows
+
+    ; For grade level 10
+    ; Side cases: no input rows or columns 
+
+    ; Side case: No row input data; or negative input rows
+    test    ECX, ECX
+    jle      No_Input_Data_Values_B   ; skip Task B if no rows
+
+    ; Side case: No column input data; or negative input columns
+    mov     EDX, COLS
+    test    EDX, EDX
+    jle      No_Input_Data_Values_B   ; skip Task B if no columns
+
+Row_LoopB:                 ; outer loop; process each row
+    push   ECX         ; save rows counter - outer loop counter
+    mov ECX, COLS    ; initialize inner loop counter - number of columns
+    ; EAX = will store maximal negative
+    xor  EAX, EAX   ; EAX = will store maximal negative
+
+    xor     EBX, EBX      ; EBX = flag: 0 = not found, 1 = found 
+    ; clear EBX to use it as a flag to check if we found any negative number
+    ; if EBX is 0 after processing the row, it means no negative number was found in that row
+
+Col_LoopB:                ; inner loop ; process each column per row
+    mov    EDX, dword ptr [ESI]         ; load current element into EDX; EDX = current element value
+    
+    cmp    EDX, 0         ; check if the current element is negative
+    jge    Not_Maximal_Negative    ; if value of EDX is greater or equal to 0, skip to Not_Maximal_Negative
+    ; Not_Maximal_Negative means current element is not negative and also is not maximal negative value in the row, or after updating max and jumping back, so we skip the updating process
+
+    ; If EDX is negative
+    cmp    EBX, 0         ; check if this is the first negative number found in the row, or it is not to decide whether to update max negative value - which branch to jump to
+    je     First_Negative  ; if EBX is 0, this is the first negative number
+
+    ; If it is not the first negative number, compare with current max negative in EDX
+    cmp    EDX, EAX       ; compare current element - EDX with the current max negative value - EAX 
+    jle    Not_Maximal_Negative    ; if current element - EDX is less than or equal to max negative - EAX, skip updating
+    mov	EAX, EDX       ; if it is greater, update maximal negative value
+    jmp    Not_Maximal_Negative
+
+First_Negative:
+    mov    EAX, EDX       ; update maximal negative value
+    mov    EBX, 1         ; set flag to indicate that we have found at least one negative number in the row
+
+Not_Maximal_Negative:
+    add     ESI, 4       ; move to the next element in the row, each element is 4 bytes (DWORD - DD); it also means that moving to the next column in the same row
+    loop    Col_LoopB    ; repeat inner loop for all columns (to process all elements in the current row)
+    
+    ; EBX = 1 - at least one negative value in the row; EAX = maximal negative
+    ; EBX = 0  -> no negative found, must store -1 according to assignment
+    cmp EBX, 0
+    jne  Have_Negative_B; if EBX != 0, we have found at least one negative number, so skip setting EAX to 0
+    mov EAX, -1 ; set EAX to -1 to indicate no negative number found in the row
+
+
+Have_Negative_B:
+    ; After processing all columns in the current row
+    ; Store the result (maximal negative value) in output array RB
+    ; If no negative number was found, EAX will be 0 as initialized
+    mov     [EDI], EAX   ; store the result (maximal negative value or 0 if none found)
+    add     EDI, 4       ; move to the next position in the output array RB
+    
+    pop     ECX          ; restore rows counter - outer loop counter
+    loop    Row_LoopB    ; repeat outer loop for all rows
+
+No_Input_Data_Values_B:
+    jmp     Exit
+
+Exit:
+    push    0
+    call    ExitProcess@4
+
+    END A5
